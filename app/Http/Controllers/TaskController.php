@@ -13,13 +13,40 @@ class TaskController extends Controller
 {
     public function index(Request $request): Response
     {
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', Rule::in(Task::STATUSES)],
+            'priority' => ['nullable', Rule::in(Task::PRIORITIES)],
+        ]);
+
+        $search = $validated['search'] ?? null;
+        $status = $validated['status'] ?? null;
+        $priority = $validated['priority'] ?? null;
+        $overdue = $request->boolean('overdue');
+
         $tasks = $request->user()
             ->tasks()
+            ->when($search, fn ($query) => $query->where(function ($query) use ($search) {
+                $query->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            }))
+            ->when($status, fn ($query) => $query->where('status', $status))
+            ->when($priority, fn ($query) => $query->where('priority', $priority))
+            ->when($overdue, fn ($query) => $query
+                ->whereDate('due_date', '<', now()->toDateString())
+                ->where('status', '!=', 'done'))
             ->latest()
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('tasks/Index', [
             'tasks' => $tasks,
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+                'priority' => $priority,
+                'overdue' => $overdue,
+            ],
         ]);
     }
 

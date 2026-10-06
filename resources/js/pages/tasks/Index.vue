@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 
 type Status = 'todo' | 'in_progress' | 'done';
 type Priority = 'low' | 'medium' | 'high';
@@ -25,8 +25,16 @@ interface Paginated<T> {
     next_page_url: string | null;
 }
 
-defineProps<{
+interface Filters {
+    search: string | null;
+    status: Status | null;
+    priority: Priority | null;
+    overdue: boolean;
+}
+
+const props = defineProps<{
     tasks: Paginated<Task>;
+    filters: Filters;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -49,6 +57,57 @@ const priorityLabels: Record<Priority, string> = {
 };
 
 const inputClass = 'w-full rounded-lg border-neutral-300 dark:border-neutral-700 dark:bg-neutral-900';
+
+// ---- Filters ----
+const filters = reactive({
+    search: props.filters.search ?? '',
+    status: (props.filters.status ?? '') as Status | '',
+    priority: (props.filters.priority ?? '') as Priority | '',
+    overdue: props.filters.overdue,
+});
+
+const hasActiveFilters = computed(
+    () => filters.search.trim() !== '' || filters.status !== '' || filters.priority !== '' || filters.overdue,
+);
+
+let filterTimer: ReturnType<typeof setTimeout> | undefined;
+
+function applyFilters() {
+    const params: Record<string, string> = {};
+
+    if (filters.search.trim() !== '') {
+        params.search = filters.search.trim();
+    }
+    if (filters.status !== '') {
+        params.status = filters.status;
+    }
+    if (filters.priority !== '') {
+        params.priority = filters.priority;
+    }
+    if (filters.overdue) {
+        params.overdue = '1';
+    }
+
+    router.get('/tasks', params, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+}
+
+watch(filters, () => {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(applyFilters, 300);
+});
+
+onBeforeUnmount(() => clearTimeout(filterTimer));
+
+function clearFilters() {
+    filters.search = '';
+    filters.status = '';
+    filters.priority = '';
+    filters.overdue = false;
+}
 
 // ---- Create ----
 const form = useForm({
@@ -169,9 +228,42 @@ function formatDate(value: string | null): string {
                 </button>
             </form>
 
+            <!-- Filters -->
+            <div class="grid items-center gap-3 md:grid-cols-6">
+                <input v-model="filters.search" type="search" placeholder="Search title or description" :class="[inputClass, 'md:col-span-2']" />
+
+                <select v-model="filters.status" :class="inputClass">
+                    <option value="">All statuses</option>
+                    <option v-for="(label, value) in statusLabels" :key="value" :value="value">{{ label }}</option>
+                </select>
+
+                <select v-model="filters.priority" :class="inputClass">
+                    <option value="">All priorities</option>
+                    <option v-for="(label, value) in priorityLabels" :key="value" :value="value">{{ label }}</option>
+                </select>
+
+                <label class="flex items-center gap-2 text-sm">
+                    <input v-model="filters.overdue" type="checkbox" class="rounded" />
+                    Overdue only
+                </label>
+
+                <button
+                    v-if="hasActiveFilters"
+                    type="button"
+                    @click="clearFilters"
+                    class="rounded-lg px-3 py-2 text-sm underline hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                >
+                    Clear filters
+                </button>
+            </div>
+
+            <p class="-mt-3 text-sm text-neutral-500">{{ tasks.total }} {{ tasks.total === 1 ? 'task' : 'tasks' }}</p>
+
             <!-- Task list -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                <p v-if="tasks.data.length === 0" class="p-6 text-center text-neutral-500">No tasks yet. Add your first one above.</p>
+                <p v-if="tasks.data.length === 0" class="p-6 text-center text-neutral-500">
+                    {{ hasActiveFilters ? 'No tasks match your filters.' : 'No tasks yet. Add your first one above.' }}
+                </p>
 
                 <ul v-else class="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
                     <li v-for="task in tasks.data" :key="task.id" class="p-4">
