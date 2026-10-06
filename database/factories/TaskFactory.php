@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -10,15 +11,15 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class TaskFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            //
+            'user_id' => User::factory(),
+            'title' => fake()->sentence(4),
+            'description' => fake()->optional()->paragraph(),
+            'status' => fake()->randomElement(Task::STATUSES),
+            'priority' => fake()->randomElement(Task::PRIORITIES),
+            'due_date' => fake()->optional()->date(),
         ];
     }
 }
