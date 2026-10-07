@@ -16,6 +16,11 @@ class User extends Authenticatable
     public const ROLE_ADMIN = 'admin';
     public const ROLE_USER = 'user';
 
+    protected $attributes = [
+        'role' => self::ROLE_USER,
+        'is_active' => true,
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
