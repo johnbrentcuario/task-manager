@@ -14,12 +14,13 @@ class TaskFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory(),
             'title' => fake()->sentence(4),
             'description' => fake()->optional()->paragraph(),
-            'status' => fake()->randomElement(Task::STATUSES),
             'priority' => fake()->randomElement(Task::PRIORITIES),
-            'due_date' => fake()->optional()->date(),
+            'due_date' => fake()->dateTimeBetween('+1 day', '+1 month')->format('Y-m-d'),
+            'status' => Task::STATUS_PENDING,
+            'created_by' => User::factory(),
+            'assigned_to' => User::factory(),
         ];
     }
 }
