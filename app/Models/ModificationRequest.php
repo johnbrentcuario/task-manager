@@ -11,6 +11,10 @@ class ModificationRequest extends Model
     public const STATUS_APPROVED = 'approved';
     public const STATUS_DECLINED = 'declined';
 
+    protected $attributes = [
+        'status' => self::STATUS_OPEN,
+    ];
+
     protected $fillable = [
         'task_id',
         'requested_by',
