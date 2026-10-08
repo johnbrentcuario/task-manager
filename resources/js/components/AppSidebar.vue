@@ -5,7 +5,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Users } from 'lucide-vue-next';
+import { BookOpen, Folder, LayoutGrid, ListChecks, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -21,11 +21,18 @@ const mainNavItems = computed<NavItem[]>(() => {
     ];
 
     if (page.props.auth.user?.role === 'admin') {
-        items.push({
-            title: 'Users',
-            href: '/admin/users',
-            icon: Users,
-        });
+        items.push(
+            {
+                title: 'Tasks',
+                href: '/admin/tasks',
+                icon: ListChecks,
+            },
+            {
+                title: 'Users',
+                href: '/admin/users',
+                icon: Users,
+            },
+        );
     }
 
     return items;
