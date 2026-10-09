@@ -77,6 +77,17 @@ class Task extends Model
             && $this->due_date->lt(today());
     }
 
+    /**
+     * Whole calendar days from today to the deadline:
+     * 0 = due today, 1 = tomorrow, negative = days overdue.
+     */
+    public function daysUntilDue(): int
+    {
+        $due = $this->due_date->copy()->startOfDay();
+
+        return (int) round(($due->getTimestamp() - today()->getTimestamp()) / 86400);
+    }
+
     public function scopeOverdue(Builder $query): Builder
     {
         return $query

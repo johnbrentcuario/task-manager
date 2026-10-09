@@ -33,6 +33,12 @@ const mainNavItems = computed<NavItem[]>(() => {
                 icon: Users,
             },
         );
+    } else {
+        items.push({
+            title: 'My tasks',
+            href: '/tasks',
+            icon: ListChecks,
+        });
     }
 
     return items;

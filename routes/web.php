@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\TaskController as AdminTaskController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\AssignedTaskController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -16,6 +17,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
+    // ---- User panel: the tasks assigned to me ----
+    Route::get('tasks', [AssignedTaskController::class, 'index'])->name('tasks.index');
+    Route::get('tasks/{task}', [AssignedTaskController::class, 'show'])->name('tasks.show');
+    Route::post('tasks/{task}/accept', [AssignedTaskController::class, 'accept'])->name('tasks.accept');
+    Route::post('tasks/{task}/submit', [AssignedTaskController::class, 'submit'])->name('tasks.submit');
+    Route::post('tasks/{task}/modification-requests', [AssignedTaskController::class, 'requestModification'])->name('tasks.modification-requests.store');
+    Route::post('tasks/{task}/comments', [AssignedTaskController::class, 'comment'])->name('tasks.comments.store');
+
+    // ---- Admin panel ----
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('users', [UserController::class, 'index'])->name('users.index');
         Route::get('users/create', [UserController::class, 'create'])->name('users.create');
