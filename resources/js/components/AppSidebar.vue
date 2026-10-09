@@ -5,7 +5,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, ListChecks, Users } from 'lucide-vue-next';
+import { BookOpen, FileText, Folder, LayoutGrid, ListChecks, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -31,6 +31,11 @@ const mainNavItems = computed<NavItem[]>(() => {
                 title: 'Users',
                 href: '/admin/users',
                 icon: Users,
+            },
+            {
+                title: 'Reports',
+                href: '/admin/reports',
+                icon: FileText,
             },
         );
     } else {

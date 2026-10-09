@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\ModificationRequestController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\TaskController as AdminTaskController;
 use App\Http\Controllers\Admin\TaskReviewController;
 use App\Http\Controllers\Admin\UserController;
@@ -54,6 +55,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('modification-requests/{modificationRequest}/approve', [ModificationRequestController::class, 'approve'])->name('modification-requests.approve');
         Route::post('modification-requests/{modificationRequest}/decline', [ModificationRequestController::class, 'decline'])->name('modification-requests.decline');
+
+        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/export', [ReportController::class, 'export'])->name('reports.export');
     });
 });
 
