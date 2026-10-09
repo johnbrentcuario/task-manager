@@ -82,6 +82,69 @@ class TaskWorkflow
         });
     }
 
+    /**
+     * A task can be deleted for real only while nobody has acted on it:
+     * it is still pending, has no events beyond setup, and has no
+     * modification requests. Anything else must be archived instead.
+     */
+    public function isDeletable(Task $task): bool
+    {
+        return $task->status === Task::STATUS_PENDING
+            && ! $task->events()->whereNotIn('type', TaskEvent::INERT_TYPES)->exists()
+            && ! $task->modificationRequests()->exists();
+    }
+
+    public function destroy(User $admin, Task $task): void
+    {
+        $this->requireAdmin($admin);
+
+        DB::transaction(function () use ($task) {
+            $task = $this->locked($task);
+
+            if (! $this->isDeletable($task)) {
+                throw new TaskWorkflowException(
+                    'This task has activity, so it can not be deleted. Archive it instead to keep its history.'
+                );
+            }
+
+            $task->forceDelete();
+        });
+    }
+
+    public function archive(User $admin, Task $task, ?string $reason = null): Task
+    {
+        $this->requireAdmin($admin);
+
+        return DB::transaction(function () use ($admin, $task, $reason) {
+            $task = $this->locked($task);
+
+            $this->record($task, $admin, TaskEvent::ARCHIVED, $this->clean($reason));
+
+            $task->delete();
+
+            return $task;
+        });
+    }
+
+    public function restore(User $admin, Task $task): Task
+    {
+        $this->requireAdmin($admin);
+
+        return DB::transaction(function () use ($admin, $task) {
+            $task = Task::withTrashed()->whereKey($task->getKey())->lockForUpdate()->firstOrFail();
+
+            if (! $task->trashed()) {
+                throw new TaskWorkflowException('This task is not archived.');
+            }
+
+            $task->restore();
+
+            $this->record($task, $admin, TaskEvent::RESTORED);
+
+            return $task;
+        });
+    }
+
     public function approve(User $admin, Task $task, ?string $note = null): Task
     {
         $this->requireAdmin($admin);
@@ -262,6 +325,10 @@ class TaskWorkflow
 
     // ---- Helpers ----
 
+    /**
+     * Reloads the task with a row lock. Archived tasks are not found,
+     * so nothing can be done to a task until it is restored.
+     */
     private function locked(Task $task): Task
     {
         return Task::query()->whereKey($task->getKey())->lockForUpdate()->firstOrFail();

@@ -30,6 +30,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('tasks/{task}/edit', [AdminTaskController::class, 'edit'])->name('tasks.edit');
         Route::put('tasks/{task}', [AdminTaskController::class, 'update'])->name('tasks.update');
         Route::delete('tasks/{task}', [AdminTaskController::class, 'destroy'])->name('tasks.destroy');
+        Route::post('tasks/{task}/archive', [AdminTaskController::class, 'archive'])->name('tasks.archive');
+        Route::post('tasks/{task}/restore', [AdminTaskController::class, 'restore'])
+            ->withTrashed()
+            ->name('tasks.restore');
     });
 });
 

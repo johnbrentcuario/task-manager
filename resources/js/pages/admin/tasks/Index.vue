@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, reactive, watch } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 
 interface TaskRow {
     id: number;
@@ -11,6 +11,8 @@ interface TaskRow {
     status: string;
     due_date: string;
     is_overdue: boolean;
+    is_archived: boolean;
+    can_delete: boolean;
     assignee: string | null;
 }
 
@@ -64,6 +66,7 @@ const chips = [
     { key: 'changes_requested', label: 'Changes requested', count: 'changes_requested' },
     { key: 'completed', label: 'Completed', count: 'completed' },
     { key: 'overdue', label: 'Overdue', count: 'overdue' },
+    { key: 'archived', label: 'Archived', count: 'archived' },
 ];
 
 const inputClass = 'w-full rounded-lg border-neutral-300 dark:border-neutral-700 dark:bg-neutral-900';
@@ -116,12 +119,37 @@ function clearFilters() {
     filters.assignee = '';
 }
 
+// ---- Delete, archive, restore ----
+const actionError = ref<string | null>(null);
+
+const actionOptions = {
+    preserveScroll: true,
+    onError: (errors: Record<string, string>) => {
+        actionError.value = errors.task ?? 'That action could not be completed.';
+    },
+};
+
 function deleteTask(task: TaskRow) {
-    if (!confirm(`Delete "${task.title}"? Its history will be deleted too.`)) {
+    if (!confirm(`Delete "${task.title}"? Nobody has acted on it yet, and this can not be undone.`)) {
         return;
     }
 
-    router.delete(`/admin/tasks/${task.id}`, { preserveScroll: true });
+    actionError.value = null;
+    router.delete(`/admin/tasks/${task.id}`, actionOptions);
+}
+
+function archiveTask(task: TaskRow) {
+    if (!confirm(`Archive "${task.title}"? It will be hidden from the lists, its history is kept, and you can restore it later.`)) {
+        return;
+    }
+
+    actionError.value = null;
+    router.post(`/admin/tasks/${task.id}/archive`, {}, actionOptions);
+}
+
+function restoreTask(task: TaskRow) {
+    actionError.value = null;
+    router.post(`/admin/tasks/${task.id}/restore`, {}, actionOptions);
 }
 </script>
 
@@ -139,6 +167,10 @@ function deleteTask(task: TaskRow) {
                     New task
                 </Link>
             </div>
+
+            <p v-if="actionError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
+                {{ actionError }}
+            </p>
 
             <!-- Status counts (click to filter) -->
             <div class="flex flex-wrap gap-2">
@@ -201,7 +233,7 @@ function deleteTask(task: TaskRow) {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
-                        <tr v-for="task in tasks.data" :key="task.id">
+                        <tr v-for="task in tasks.data" :key="task.id" :class="{ 'opacity-60': task.is_archived }">
                             <td class="px-4 py-3 font-medium">{{ task.title }}</td>
                             <td class="px-4 py-3">{{ task.assignee ?? '—' }}</td>
                             <td class="px-4 py-3">{{ priorityLabels[task.priority] }}</td>
@@ -211,19 +243,44 @@ function deleteTask(task: TaskRow) {
                                     Overdue
                                 </span>
                             </td>
-                            <td class="px-4 py-3">{{ statusLabels[task.status] ?? task.status }}</td>
+                            <td class="px-4 py-3">
+                                {{ statusLabels[task.status] ?? task.status }}
+                                <span v-if="task.is_archived" class="ml-1 rounded bg-neutral-200 px-1.5 py-0.5 text-xs font-medium dark:bg-neutral-700">
+                                    Archived
+                                </span>
+                            </td>
                             <td class="px-4 py-3">
                                 <div class="flex justify-end gap-2">
-                                    <Link :href="`/admin/tasks/${task.id}/edit`" class="rounded-lg px-3 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800">
-                                        Edit
-                                    </Link>
-                                    <button
-                                        type="button"
-                                        @click="deleteTask(task)"
-                                        class="rounded-lg px-3 py-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-                                    >
-                                        Delete
-                                    </button>
+                                    <template v-if="task.is_archived">
+                                        <button
+                                            type="button"
+                                            @click="restoreTask(task)"
+                                            class="rounded-lg px-3 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        >
+                                            Restore
+                                        </button>
+                                    </template>
+                                    <template v-else>
+                                        <Link :href="`/admin/tasks/${task.id}/edit`" class="rounded-lg px-3 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                                            Edit
+                                        </Link>
+                                        <button
+                                            v-if="task.can_delete"
+                                            type="button"
+                                            @click="deleteTask(task)"
+                                            class="rounded-lg px-3 py-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                                        >
+                                            Delete
+                                        </button>
+                                        <button
+                                            v-else
+                                            type="button"
+                                            @click="archiveTask(task)"
+                                            class="rounded-lg px-3 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        >
+                                            Archive
+                                        </button>
+                                    </template>
                                 </div>
                             </td>
                         </tr>

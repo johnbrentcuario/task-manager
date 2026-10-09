@@ -66,7 +66,7 @@ class TaskModelTest extends TestCase
         $this->assertCount(0, Task::overdue()->get());
     }
 
-    public function test_deleting_a_task_deletes_its_history(): void
+    public function test_deleting_a_task_archives_it_and_keeps_its_history(): void
     {
         $task = Task::factory()->create();
 
@@ -78,6 +78,25 @@ class TaskModelTest extends TestCase
 
         $task->delete();
 
+        $this->assertSoftDeleted('tasks', ['id' => $task->id]);
+        $this->assertDatabaseCount('task_events', 1);
+        $this->assertNull(Task::find($task->id));
+        $this->assertNotNull(Task::withTrashed()->find($task->id));
+    }
+
+    public function test_force_deleting_a_task_deletes_its_history(): void
+    {
+        $task = Task::factory()->create();
+
+        TaskEvent::create([
+            'task_id' => $task->id,
+            'user_id' => $task->created_by,
+            'type' => TaskEvent::CREATED,
+        ]);
+
+        $task->forceDelete();
+
+        $this->assertDatabaseMissing('tasks', ['id' => $task->id]);
         $this->assertDatabaseCount('task_events', 0);
     }
 

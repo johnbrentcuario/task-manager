@@ -18,6 +18,19 @@ class TaskEvent extends Model
     public const MODIFICATION_APPROVED = 'modification_approved';
     public const MODIFICATION_DECLINED = 'modification_declined';
     public const COMMENTED = 'commented';
+    public const ARCHIVED = 'archived';
+    public const RESTORED = 'restored';
+
+    /**
+     * Events an admin causes while setting a task up. They do not count
+     * as "someone has acted on this task", so a task that only has these
+     * can still be deleted for real.
+     */
+    public const INERT_TYPES = [
+        self::CREATED,
+        self::EDITED,
+        self::REASSIGNED,
+    ];
 
     protected $fillable = [
         'task_id',

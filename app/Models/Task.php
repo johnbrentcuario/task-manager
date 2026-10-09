@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Task extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     public const STATUS_PENDING = 'pending';
     public const STATUS_ACCEPTED = 'accepted';
@@ -58,12 +59,12 @@ class Task extends Model
 
     public function events(): HasMany
     {
-        return $this->hasMany(TaskEvent::class)->latest();
+        return $this->hasMany(TaskEvent::class);
     }
 
     public function modificationRequests(): HasMany
     {
-        return $this->hasMany(ModificationRequest::class)->latest();
+        return $this->hasMany(ModificationRequest::class);
     }
 
     /**

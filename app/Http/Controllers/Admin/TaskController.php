@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Exceptions\TaskWorkflowException;
 use App\Http\Controllers\Controller;
 use App\Models\Task;
+use App\Models\TaskEvent;
 use App\Models\User;
 use App\Services\TaskWorkflow;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +24,7 @@ class TaskController extends Controller
     {
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
-            'status' => ['nullable', Rule::in([...Task::STATUSES, 'overdue'])],
+            'status' => ['nullable', Rule::in([...Task::STATUSES, 'overdue', 'archived'])],
             'priority' => ['nullable', Rule::in(Task::PRIORITIES)],
             'assignee' => ['nullable', 'integer'],
         ]);
@@ -35,12 +36,20 @@ class TaskController extends Controller
 
         $tasks = Task::query()
             ->with('assignee:id,name')
+            ->withExists([
+                'modificationRequests as has_requests',
+                'events as has_activity' => fn ($query) => $query->whereNotIn('type', TaskEvent::INERT_TYPES),
+            ])
             ->when($search, fn ($query) => $query->where(function ($query) use ($search) {
                 $query->where('title', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%");
             }))
+            ->when($status === 'archived', fn ($query) => $query->onlyTrashed())
             ->when($status === 'overdue', fn ($query) => $query->overdue())
-            ->when($status && $status !== 'overdue', fn ($query) => $query->where('status', $status))
+            ->when(
+                $status && ! in_array($status, ['overdue', 'archived'], true),
+                fn ($query) => $query->where('status', $status),
+            )
             ->when($priority, fn ($query) => $query->where('priority', $priority))
             ->when($assignee, fn ($query) => $query->where('assigned_to', $assignee))
             ->orderBy('due_date')
@@ -53,7 +62,12 @@ class TaskController extends Controller
                 'priority' => $task->priority,
                 'status' => $task->status,
                 'due_date' => $task->due_date->toDateString(),
-                'is_overdue' => $task->isOverdue(),
+                'is_overdue' => ! $task->trashed() && $task->isOverdue(),
+                'is_archived' => $task->trashed(),
+                'can_delete' => ! $task->trashed()
+                    && $task->status === Task::STATUS_PENDING
+                    && ! $task->has_activity
+                    && ! $task->has_requests,
                 'assignee' => $task->assignee?->name,
             ]);
 
@@ -69,6 +83,7 @@ class TaskController extends Controller
         }
 
         $counts['overdue'] = Task::overdue()->count();
+        $counts['archived'] = Task::onlyTrashed()->count();
 
         return Inertia::render('admin/tasks/Index', [
             'tasks' => $tasks,
@@ -131,11 +146,37 @@ class TaskController extends Controller
         return redirect('/admin/tasks');
     }
 
-    public function destroy(Task $task): RedirectResponse
+    public function destroy(Request $request, Task $task): RedirectResponse
     {
-        $task->delete();
+        try {
+            $this->workflow->destroy($request->user(), $task);
+        } catch (TaskWorkflowException $exception) {
+            return back()->withErrors(['task' => $exception->getMessage()]);
+        }
 
         return redirect('/admin/tasks');
+    }
+
+    public function archive(Request $request, Task $task): RedirectResponse
+    {
+        $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $this->workflow->archive($request->user(), $task, $request->input('reason'));
+
+        return back();
+    }
+
+    public function restore(Request $request, Task $task): RedirectResponse
+    {
+        try {
+            $this->workflow->restore($request->user(), $task);
+        } catch (TaskWorkflowException $exception) {
+            return back()->withErrors(['task' => $exception->getMessage()]);
+        }
+
+        return back();
     }
 
     /**
