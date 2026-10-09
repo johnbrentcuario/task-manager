@@ -234,7 +234,9 @@ function restoreTask(task: TaskRow) {
                     </thead>
                     <tbody class="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
                         <tr v-for="task in tasks.data" :key="task.id" :class="{ 'opacity-60': task.is_archived }">
-                            <td class="px-4 py-3 font-medium">{{ task.title }}</td>
+                            <td class="px-4 py-3 font-medium">
+                                <Link :href="`/admin/tasks/${task.id}`" class="hover:underline">{{ task.title }}</Link>
+                            </td>
                             <td class="px-4 py-3">{{ task.assignee ?? '—' }}</td>
                             <td class="px-4 py-3">{{ priorityLabels[task.priority] }}</td>
                             <td class="px-4 py-3">
